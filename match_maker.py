@@ -16,37 +16,66 @@ def client_thread(client_socket):
         # We expect the first thing we see the be the match making token on its own,
         # so when we see that we can start throwing data around the place
 
-        print data
+        if data != '':
 
-        if tokenRecived:
-            # Am I alice or bob. If I am alice, send the data to bob
+            if tokenRecived:
+                if matches_dict.has_key(token):
+                    if matches_dict[token]['state'] == "ACTIVE":
 
-            socket_to_send_to = None
-            if amAlice:
-                if matches_dict[token].has_key('bob'):
-                    socket_to_send_to = matches_dict[token]['bob']
+                        # Am I alice or bob. If I am alice, send the data to bob
+
+                        socket_to_send_to = None
+                        if amAlice:
+                            if matches_dict[token].has_key('bob'):
+                                socket_to_send_to = matches_dict[token]['bob']
+                        else:
+                            socket_to_send_to = matches_dict[token]['alice']
+
+                        if socket_to_send_to is not None:
+                            socket_to_send_to.send(data)
+                        else:
+                            print "No friend to send data to"
+                    else:
+                        # not active,
+                        print "We are no longer active, close and exit thread"
+                        client_socket.close()
+                        del matches_dict[token]
+                        break
+                else:
+                    print "Error state... we think the token is recived, but we are not in the dict so we need " \
+                          " are probably bob and everything has died. Close and exit thread"
+                    client_socket.close()
+                    break
+
             else:
-                socket_to_send_to = matches_dict[token]['alice']
+                tokenRecived = True
+                token = data
+                if matches_dict.has_key(token):
+                    # we've see this token before, so register us with it
+                    matches_dict[token]['bob'] = client_socket
+                else:
+                    matches_dict[token] = {'alice':client_socket, 'state':"ACTIVE"}
+                    amAlice = True
 
-            if socket_to_send_to is not None:
-                socket_to_send_to.send(data)
-            else:
-                print "No friend to send data to"
-
+                print matches_dict
         else:
-            tokenRecived = True
-            token = data
-            if matches_dict.has_key(token):
-                # we've see this token before, so register us with it
-                matches_dict[token]['bob'] = client_socket
-            else:
-                matches_dict[token] = {'alice':client_socket}
-                amAlice = True
-
+            # data was empty or error
+            # Alice closes the sockets for her and bob...
+            print "We got a data error or socket close..."
             print matches_dict
-
-
-
+            print amAlice
+            print tokenRecived
+            print token
+            if tokenRecived and matches_dict.has_key(token):
+                if amAlice:
+                    del matches_dict[token]['alice']
+                else:
+                    del matches_dict[token]['bob']
+                matches_dict[token]['state'] = "CLOSING"
+            else:
+                print "No token, we didn't get going, nothing to do beyond close and exit thread"
+            client_socket.close()
+            break
 
 if __name__ == "__main__":
     server_socket = socket.socket(socket.AF_INET,
@@ -54,7 +83,7 @@ if __name__ == "__main__":
 
 
     print socket.gethostname()
-    server_socket.bind(("127.0.0.1",9913))
+    server_socket.bind(("0.0.0.0",9913))
     server_socket.listen(5)
 
     while True:
