@@ -53,6 +53,7 @@ def client_thread(client_socket):
                 if matches_dict.has_key(token):
                     # we've see this token before, so register us with it
                     matches_dict[token]['bob'] = client_socket
+                    matches_dict[token]['alice'].send(token)
                 else:
                     matches_dict[token] = {'alice':client_socket, 'state':"ACTIVE"}
                     amAlice = True
