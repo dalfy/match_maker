@@ -90,16 +90,16 @@ if __name__ == "__main__":
 
     while True:
         (client_socket, address) = server_socket.accept()
+
         print "Socket timeout before setting to None: " + str(client_socket.gettimeout())
         client_socket.settimeout(None)
         print "Socket timeout after setting to None: " + str(client_socket.gettimeout())
-
-
         # clean up all the old threads
         for conn in matches_dict.keys():
             if matches_dict[conn]['state'] == "CLOSING":
                 if 'alice' not in matches_dict[conn] and 'bob' not in matches_dict[conn]:
                     print "Removing %s" % (conn,)
                     del matches_dict[conn]
+
 
         thread.start_new_thread(client_thread,(client_socket, address))
