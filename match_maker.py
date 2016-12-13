@@ -6,8 +6,8 @@ matches_dict = {}
 
 
 
-def client_thread(client_socket):
-    tokenRecived = False
+def client_thread(client_socket, address):
+    tokenReceived = False
     token = ""
     amAlice = False
     while True:
@@ -18,7 +18,7 @@ def client_thread(client_socket):
 
         if data != '':
 
-            if tokenRecived:
+            if tokenReceived:
                 if matches_dict.has_key(token):
                     if matches_dict[token]['state'] == "ACTIVE":
 
@@ -42,19 +42,21 @@ def client_thread(client_socket):
                         del matches_dict[token]
                         break
                 else:
-                    print "Error state... we think the token is recived, but we are not in the dict so we need " \
+                    print "Error state... we think the token is received, but we are not in the dict so we need " \
                           " are probably bob and everything has died. Close and exit thread"
                     client_socket.close()
                     break
 
             else:
-                tokenRecived = True
+                tokenReceived = True
                 token = data
                 if matches_dict.has_key(token):
+                    print "Bob (%s) sent token %s" % (address, token)
                     # we've see this token before, so register us with it
                     matches_dict[token]['bob'] = client_socket
                     matches_dict[token]['alice'].send(token)
                 else:
+                    print "Alice (%s) sent token %s" % (address, token)
                     matches_dict[token] = {'alice':client_socket, 'state':"ACTIVE"}
                     amAlice = True
 
@@ -62,19 +64,17 @@ def client_thread(client_socket):
         else:
             # data was empty or error
             # Alice closes the sockets for her and bob...
-            print "We got a data error or socket close..."
-            print matches_dict
-            print amAlice
-            print tokenRecived
-            print token
-            if tokenRecived and matches_dict.has_key(token):
+            if tokenReceived and matches_dict.has_key(token):
                 if amAlice:
+                    print "Alice got a data error or socket close for token '%s'..." % (token)
                     del matches_dict[token]['alice']
                 else:
+                    print "Bob got a data error or socket close for token '%s'..." % (token)
                     del matches_dict[token]['bob']
                 matches_dict[token]['state'] = "CLOSING"
             else:
-                print "No token, we didn't get going, nothing to do beyond close and exit thread"
+                print "We got a data error or socket close. No token, just close and exit thread."
+            print matches_dict
             client_socket.close()
             break
 
@@ -84,16 +84,16 @@ if __name__ == "__main__":
 
 
     print socket.gethostname()
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(("0.0.0.0",9913))
     server_socket.listen(5)
 
     while True:
         (client_socket, address) = server_socket.accept()
-        print client_socket.gettimeout()
+
+        print "Socket timeout before setting to None: " + str(client_socket.gettimeout())
         client_socket.settimeout(None)
-        print client_socket.gettimeout()
-
-
+        print "Socket timeout after setting to None: " + str(client_socket.gettimeout())
         # clean up all the old threads
         for conn in matches_dict.keys():
             if matches_dict[conn]['state'] == "CLOSING":
@@ -101,4 +101,5 @@ if __name__ == "__main__":
                     print "Removing %s" % (conn,)
                     del matches_dict[conn]
 
-        thread.start_new_thread(client_thread,(client_socket,))
+
+        thread.start_new_thread(client_thread,(client_socket, address))
