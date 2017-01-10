@@ -91,9 +91,11 @@ if __name__ == "__main__":
     while True:
         (client_socket, address) = server_socket.accept()
 
-        print "Socket timeout before setting to None: " + str(client_socket.gettimeout())
-        client_socket.settimeout(None)
-        print "Socket timeout after setting to None: " + str(client_socket.gettimeout())
+        client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        client_socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 10)
+        client_socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 300)
+        client_socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 60)
+
         # clean up all the old threads
         for conn in matches_dict.keys():
             if matches_dict[conn]['state'] == "CLOSING":
